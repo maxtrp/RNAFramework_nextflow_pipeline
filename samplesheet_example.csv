@@ -1,0 +1,3 @@
+sample,treated_fastq_1,treated_fastq_2,control_fastq_1,control_fastq_2
+sampleA,/path/to/fastqs/treated_sampleA_R1.fastq.gz,/path/to/fastqs/treated_sampleA_R2.fastq.gz,/path/to/fastqs/control_sampleA_R1.fastq.gz,/path/to/fastqs/control_sampleA_R2.fastq.gz
+sampleB,/path/to/fastqs/treated_sampleB_R1.fastq.gz,/path/to/fastqs/treated_sampleB_R2.fastq.gz,/path/to/fastqs/control_sampleB_R1.fastq.gz,/path/to/fastqs/control_sampleB_R2.fastq.gz
