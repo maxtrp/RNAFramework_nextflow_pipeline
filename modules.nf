@@ -44,6 +44,27 @@ process FASTQC {
     """
 }
 
+process FASTP_DEDUPLICATION {
+
+    tag "${sample_id}_${treatment}"
+    publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
+
+    input:
+    tuple val(sample_id), val(treatment), path(reads)
+
+    output:
+    tuple val(sample_id), val(treatment), path("*.fastq.gz"), emit: reads
+    path "*.log"                                            , emit: log
+
+    script:
+    """
+    fastp --thread $task.cpus --dedup --disable_adapter_trimming \
+    --in1 ${reads[0]} --in2 ${reads[1]} \
+    --out1 deduplicated_${sample_id}_${treatment}_R1.fastq.gz --out2 deduplicated_${sample_id}_${treatment}_R2.fastq.gz  \
+    2> ${sample_id}_${treatment}_fastp_dedup.log
+    """
+}
+
 process CUTADAPT {
     tag "${sample_id}_${treatment}"
     publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
@@ -126,53 +147,16 @@ process RF_COUNT {
     path fasta
 
     output:
-    tuple val(sample_id), val(treatment), file("rf_count/*.rc"), emit: counts_file
-    path "*.log"                                               , emit: log
+    tuple val(sample_id), val(treatment), file("rf_count/*.rc"), file("*_counts.txt"), emit: counts_files
+    path "*.log"                                                                     , emit: log
 
     script:
     """
     rf-count --working-threads $task.cpus \
     --count-mutations --fasta ${fasta} ${bam} \
     > ${sample_id}_${treatment}_rf_count.log
-    """
-}
 
-process RF_COUNT_MUTATION_MAP {
-    tag "${sample_id}_${treatment}"
-    container 'dincarnato/rnaframework:latest' // run in docker container
-    publishDir "${params.outdir}/logs/${sample_id}/", mode: 'copy', pattern: '*.log'
-
-    input:
-    tuple val(sample_id), val(treatment), file(bam), file(bai)
-    path fasta
-
-    output:
-    tuple val(sample_id), val(treatment), file("rf_count/*.mm"), emit: mm_file
-    path "*.log"                                               , emit: log
-
-    script:
-    """
-    rf-count --working-threads $task.cpus \
-    --max-coverage 1000 --count-mutations --mutation-map \
-    --fasta ${fasta} ${bam} \
-    > ${sample_id}_${treatment}_rf_count_downsampled.log
-    """
-}
-
-process DRACO {
-    tag "${sample_id}_${treatment}"
-    // publishDir "${params.outdir}/logs/${sample_id}/", mode: 'copy', pattern: '*.log'
-    
-    input:
-    tuple val(sample_id), val(treatment), file(mutation_map_file)
-
-    output:
-    // path "*.log"                         , emit: log
-
-
-    script:
-    """
-    draco --mm ${mutation_map_file}
+    rf-rctools view rf_count/*.rc > ${sample_id}_counts.txt
     """
 }
 
@@ -190,12 +174,94 @@ process RF_NORM {
     path "*.log"                         , emit: log
 
 
+    shell:
+    if (params.probing_reagent == 'dms') {
+            reactive_bases = 'AC'
+        } else if(params.probing_reagent == 'shape') {
+            reactive_bases = 'ACGT'
+        } else {
+            exit 1, "--probing_reagent not specified."
+        }
+    '''
+    rf-norm --processors !{task.cpus} --scoring-method 3 --raw --reactive-bases !{reactive_bases} \
+    --treated  !{counts_files['treated'][0]} --untreated !{counts_files['control'][0]} \
+    --output-dir rf_norm > !{sample_id}_rf_norm.log
+    
+    # create reactivity file in .shape format
+    for file in rf_norm/*.xml;
+        do xml_to_shape.py $file $(basename --suffix=.xml $file).shape;
+    done
+    '''
+}
+
+process RAW_COUNTS {
+    tag "${sample_id}"
+    publishDir "${params.outdir}/${sample_id}/", mode: 'copy', pattern: '*.csv'
+    
+    input:
+    tuple val(sample_id), val(counts_files)
+
+    output:
+    tuple val(sample_id), file('*.csv')
+
+
     script:
     """
-    rf-norm --processors $task.cpus --scoring-method 3 --raw \
-    --treated  ${counts_files['treated']} --untreated ${counts_files['control']} \
-    --output-dir rf_norm > ${sample_id}_rf_norm.log
+    raw_counts.py ${counts_files['treated'][1]} ${counts_files['control'][1]}
+    """
+}
+
+process RF_COUNT_MUTATION_MAP_SUBSAMPLED {
+    tag "${sample_id}_${treatment}"
+    container 'dincarnato/rnaframework:latest' // run in docker container
+    publishDir "${params.outdir}/logs/${sample_id}/", mode: 'copy', pattern: '*.log'
+
+    input:
+    tuple val(sample_id), val(treatment), file(bam), file(bai)
+    path fasta
+
+    output:
+    tuple val(sample_id), val(treatment), file("rf_count/*.mm"), emit: mm_file
+    path "*.log"                                               , emit: log
+
+    shell:
+    '''
+    # calculate subsampling ratio
+    TARGET_NUM_PAIRS=50000
+    NUM_MAPPED_PAIRS=$(samtools view -F 132 !{bam} | wc -l)
+    RATIO=$(awk "BEGIN {print $TARGET_NUM_PAIRS / $NUM_MAPPED_PAIRS}")
+
+    samtools view --excl-flags 12 --bam --subsample $RATIO --subsample-seed 1 !{bam} > downsampled_!{sample_id}_!{treatment}.bam &&
+    samtools index downsampled_!{sample_id}_!{treatment}.bam --output downsampled_!{sample_id}_!{treatment}.bam.bai
+
+    rf-count --working-threads !{task.cpus} \
+    --count-mutations --mutation-map \
+    --fasta !{fasta} downsampled_!{sample_id}_!{treatment}.bam \
+    > !{sample_id}_!{treatment}_rf_count_downsampled.log
+    '''
+}
+
+process DRACO {
+    tag "${sample_id}_${treatment}"
+    publishDir "${params.outdir}/${sample_id}/", mode: 'copy', pattern: '*.json'
+    publishDir "${params.outdir}/logs/${sample_id}/", mode: 'copy', pattern: '*.log'
     
-    xml_to_shape.py rf_norm/*.xml ${sample_id}.shape
+    input:
+    tuple val(sample_id), val(treatment), file(mutation_map_file)
+
+    output:
+    path "*.json", emit: draco_json
+    path "*.log" , emit: log
+
+
+    script:
+    if (params.probing_reagent == 'shape') {
+        draco_shape = true
+    } else {
+        draco_shape = false
+    }
+    """
+    draco --mm ${mutation_map_file} ${draco_shape ? '--shape' : ''} \
+    --output ${sample_id}_${treatment}_draco.json > ${sample_id}_${treatment}_draco.log
     """
 }

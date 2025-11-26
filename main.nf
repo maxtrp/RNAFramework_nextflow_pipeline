@@ -37,13 +37,15 @@ include { SAMPLESHEET_CHECK } from './modules.nf'
 include { BOWTIE_INDEX } from './modules.nf'
 include { FASTQC as FASTQC_RAW } from './modules.nf'
 include { FASTQC as FASTQC_PROCESSED } from './modules.nf'
+include { FASTP_DEDUPLICATION } from './modules.nf'
 include { CUTADAPT } from './modules.nf'
 include { BOWTIE_ALIGNMENT } from './modules.nf'
 include { BAMQC } from './modules.nf'
 include { MULTIQC } from './modules.nf'
 include { RF_COUNT } from './modules.nf'
-include { RF_COUNT_MUTATION_MAP } from './modules.nf'
 include { RF_NORM } from './modules.nf'
+include { RAW_COUNTS } from './modules.nf'
+include { RF_COUNT_MUTATION_MAP_SUBSAMPLED } from './modules.nf'
 include { DRACO } from './modules.nf'
 
 workflow {
@@ -59,7 +61,9 @@ workflow {
 
     raw_fastqc_ch       = FASTQC_RAW(raw_reads_ch)
 
-    trimmed_reads_ch    = CUTADAPT(raw_reads_ch)
+    deduplicated_reads_ch = FASTP_DEDUPLICATION(raw_reads_ch)
+    
+    trimmed_reads_ch    = CUTADAPT(deduplicated_reads_ch.reads)
 
     processed_fastqc_ch = FASTQC_PROCESSED(trimmed_reads_ch.reads)
 
@@ -71,14 +75,18 @@ workflow {
 
     rf_counts_ch = RF_COUNT(bam_ch.indexed_bam, params.reference_transcriptome)
 
-    rf_counts_mm_ch = RF_COUNT_MUTATION_MAP(bam_ch.indexed_bam, params.reference_transcriptome)
-
-    draco_ch = DRACO(rf_counts_mm_ch.mm_file)
-
-    sample_rf_counts_ch    = rf_counts_ch.counts_file
-                    .map { sample_id, treatment, counts_file -> [sample_id, [(treatment):counts_file]] }
+    sample_rf_counts_ch    = rf_counts_ch.counts_files
+                    .map { sample_id, treatment, rc_file, txt_file -> [sample_id, [(treatment):[rc_file, txt_file]]] }
                     .groupTuple(by: 0)
                     .map{sample_id, labelled_count_files -> [sample_id, labelled_count_files.collectEntries()]}
 
     reactivity_ch = RF_NORM(sample_rf_counts_ch)
+
+    raw_counts_ch = RAW_COUNTS(sample_rf_counts_ch)
+
+    if (params.run_draco) {
+        rf_counts_mm_ch = RF_COUNT_MUTATION_MAP_SUBSAMPLED(bam_ch.indexed_bam, params.reference_transcriptome)
+        draco_ch = DRACO(rf_counts_mm_ch.mm_file)
+    }
+
 }
