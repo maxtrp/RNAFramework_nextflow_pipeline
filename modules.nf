@@ -225,11 +225,12 @@ process RF_COUNT_MUTATION_MAP_SUBSAMPLED {
     path "*.log"                                               , emit: log
 
     shell:
+    target_num_pairs = params.draco_subsampling
     '''
     # calculate subsampling ratio
-    TARGET_NUM_PAIRS=50000
+    TARGET_NUM_PAIRS=!{target_num_pairs}
     NUM_MAPPED_PAIRS=$(samtools view -F 132 !{bam} | wc -l)
-    RATIO=$(awk "BEGIN {print $TARGET_NUM_PAIRS / $NUM_MAPPED_PAIRS}")
+    RATIO=$(awk "BEGIN {if ($TARGET_NUM_PAIRS / $NUM_MAPPED_PAIRS > 1) print 1; else print $TARGET_NUM_PAIRS / $NUM_MAPPED_PAIRS}")
 
     samtools view --excl-flags 12 --bam --subsample $RATIO --subsample-seed 1 !{bam} > downsampled_!{sample_id}_!{treatment}.bam &&
     samtools index downsampled_!{sample_id}_!{treatment}.bam --output downsampled_!{sample_id}_!{treatment}.bam.bai
@@ -262,6 +263,8 @@ process DRACO {
     }
     """
     draco --mm ${mutation_map_file} ${draco_shape ? '--shape' : ''} \
+    --absWinLen 100 --absWinOffset 5 --minPermutations 10 --maxPermutations 50 --firstEigengapShift 0.95 \
+    --lookaheadEigengaps 1 --softClusteringIters 30 --softClusteringInits 500 --softClusteringWeightModule 0.005 \
     --output ${sample_id}_${treatment}_draco.json > ${sample_id}_${treatment}_draco.log
     """
 }
