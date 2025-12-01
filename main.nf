@@ -1,10 +1,10 @@
 #! /usr/bin/env nextflow
 /*
 ========================================================================================
-<PIPELINE NAME>
+RNAFramework_nextflow_pipeline
 ========================================================================================
 Description:
-<DESCRIPTION>
+Pipeline for processing RNA probing data (DMS/SHAPE-MaP) from raw fastq files to reactivities in .shape format.
 
 Author:
 Max Walk
@@ -28,13 +28,22 @@ if (params.help) {
     exit 0
 }
 
+if (!params.probing_reagent) {
+    exit 1, "--probing_reagent not specified (must be 'dms' or 'shape')"
+}
+
 log.info """\
-    outdir -> ${params.outdir}
+    samplesheet   -> ${params.samplesheet}
+    transcriptome -> ${params.reference_transcriptome}
+    reagent       -> ${params.probing_reagent}
+    protocol      -> ${params.sequencing_protocol}
+    outdir        -> ${params.outdir}
     """
     .stripIndent()
 
 include { SAMPLESHEET_CHECK } from './modules.nf'
 include { BOWTIE_INDEX } from './modules.nf'
+include { PEAR } from './modules.nf'
 include { FASTQC as FASTQC_RAW } from './modules.nf'
 include { FASTQC as FASTQC_PROCESSED } from './modules.nf'
 include { FASTP_DEDUPLICATION } from './modules.nf'
@@ -50,12 +59,29 @@ include { DRACO } from './modules.nf'
 
 workflow {
 
-    raw_reads_ch        = SAMPLESHEET_CHECK(params.samplesheet)
-                            .samples_csv
-                            .splitCsv(header:true, sep:',')
-                            .map {
-                                row -> [row.sample, row.treatment, [file(row.fastq_1, checkIfExists: true), file(row.fastq_2, checkIfExists: true)]]
-                            }
+    if (params.sequencing_protocol == 'paired_end') {
+
+        raw_reads_ch        = SAMPLESHEET_CHECK(params.samplesheet)
+                                .samples_csv
+                                .splitCsv(header:true, sep:',')
+                                .map {
+                                    row -> [row.sample, row.treatment, [file(row.fastq_1, checkIfExists: true), file(row.fastq_2, checkIfExists: true)]]
+                                }
+
+        raw_reads_ch = PEAR(raw_reads_ch).fastq
+
+    } else if (params.sequencing_protocol == 'single_end') {
+
+        raw_reads_ch        = SAMPLESHEET_CHECK(params.samplesheet)
+                                .samples_csv
+                                .splitCsv(header:true, sep:',')
+                                .map {
+                                    row -> [row.sample, row.treatment, file(row.fastq_1, checkIfExists: true)]
+                                }
+
+    } else {
+        exit 1, "must specify --sequencing_protocol (either 'single_end' or 'paired_end')"
+    }
     
     bowtie_index_ch     = BOWTIE_INDEX(params.reference_transcriptome)
 

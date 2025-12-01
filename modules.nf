@@ -29,6 +29,29 @@ process BOWTIE_INDEX {
     """
 }
 
+process PEAR {
+    tag "${sample_id}_${treatment}"
+    publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
+
+    input:
+    tuple val(sample_id), val(treatment), path(reads)
+
+    output:
+    tuple val(sample_id), val(treatment), path("*.assembled.fastq.gz"), emit: fastq
+    path "*.log"                                                      , emit: log
+
+    script:
+    """
+    pear --forward-fastq ${reads[0]} --reverse-fastq ${reads[1]} --output ${sample_id}_${treatment} \
+    --max-uncalled-base 0 --threads $task.cpus > ${sample_id}_${treatment}_pear.log
+
+    cat ${sample_id}_${treatment}.discarded.fastq >> ${sample_id}_${treatment}.assembled.fastq
+
+    gzip ${sample_id}_${treatment}.assembled.fastq
+    """
+
+}
+
 process FASTQC {
     tag "${sample_id}_${treatment}"
 
@@ -59,8 +82,7 @@ process FASTP_DEDUPLICATION {
     script:
     """
     fastp --thread $task.cpus --dedup --disable_adapter_trimming \
-    --in1 ${reads[0]} --in2 ${reads[1]} \
-    --out1 deduplicated_${sample_id}_${treatment}_R1.fastq.gz --out2 deduplicated_${sample_id}_${treatment}_R2.fastq.gz  \
+    --in1 ${reads} --out1 deduplicated_${sample_id}_${treatment}.fastq.gz \
     2> ${sample_id}_${treatment}_fastp_dedup.log
     """
 }
@@ -78,11 +100,10 @@ process CUTADAPT {
 
     script:
     """
-    cutadapt --cores $task.cpus --adapter ${params.read1_adapter} -A ${params.read2_adapter} \
+    cutadapt --cores $task.cpus --adapter ${params.read1_adapter} --adapter ${params.read2_adapter} \
     --quality-cutoff ${params.quality_cutoff} --minimum-length ${params.min_read_length} \
-    --output trimmed_${sample_id}_${treatment}_R1.fastq.gz --paired-output trimmed_${sample_id}_${treatment}_R2.fastq.gz \
-    ${reads[0]} ${reads[1]} \
-    > ${sample_id}_${treatment}_cutadapt.log
+    --output trimmed_${sample_id}_${treatment}.fastq.gz \
+    ${reads} > ${sample_id}_${treatment}_cutadapt.log
     """
 }
 
@@ -100,7 +121,7 @@ process BOWTIE_ALIGNMENT {
 
     script:
     """
-    bowtie2 --threads $task.cpus --norc -x ${ref_name}_index -1 ${reads[0]} -2 ${reads[1]} \
+    bowtie2 --threads $task.cpus --norc -x ${ref_name}_index -U ${reads} \
     2> ${sample_id}_${treatment}_bowtie2.log | samtools sort -o ${sample_id}_${treatment}.bam
 
     samtools index ${sample_id}_${treatment}.bam --output ${sample_id}_${treatment}.bam.bai
@@ -180,7 +201,7 @@ process RF_NORM {
         } else if(params.probing_reagent == 'shape') {
             reactive_bases = 'ACGT'
         } else {
-            exit 1, "--probing_reagent not specified."
+            exit 1, "--probing_reagent must be 'dms' or 'shape'"
         }
     '''
     rf-norm --processors !{task.cpus} --scoring-method 3 --raw --reactive-bases !{reactive_bases} \
@@ -229,7 +250,7 @@ process RF_COUNT_MUTATION_MAP_SUBSAMPLED {
     '''
     # calculate subsampling ratio
     TARGET_NUM_PAIRS=!{target_num_pairs}
-    NUM_MAPPED_PAIRS=$(samtools view -F 132 !{bam} | wc -l)
+    NUM_MAPPED_PAIRS=$(samtools view --excl-flags 132 !{bam} | wc -l)
     RATIO=$(awk "BEGIN {if ($TARGET_NUM_PAIRS / $NUM_MAPPED_PAIRS > 1) print 1; else print $TARGET_NUM_PAIRS / $NUM_MAPPED_PAIRS}")
 
     samtools view --excl-flags 12 --bam --subsample $RATIO --subsample-seed 1 !{bam} > downsampled_!{sample_id}_!{treatment}.bam &&

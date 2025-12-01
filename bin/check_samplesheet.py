@@ -45,10 +45,20 @@ def check_samplesheet(file_in, file_out):
     sample,treated_fastq_1,treated_fastq_2,control_fastq_1,control_fastq_2
     sample_name,/path/to/fastqs/treated_sample_R1.fastq.gz,/path/to/fastqs/treated_sample_R2.fastq.gz,/path/to/fastqs/control_sample_R1.fastq.gz,/path/to/fastqs/control_sample_R2.fastq.gz
 
+    N.B. leave fastq_2 columns blank for single-end data. e.g.:
+    
+    sample,treated_fastq_1,treated_fastq_2,control_fastq_1,control_fastq_2
+    sample_name,/path/to/fastqs/treated_sample_R1.fastq.gz,,/path/to/fastqs/control_sample_R1.fastq.gz,
+
     Treatment and control channels are separated in the output csv:
     sample,treatment,fastq_1,fastq_2
     sample_name,treated,/path/to/fastqs/treated_sample_R1.fastq.gz,/path/to/fastqs/treated_sample_R2.fastq.gz
     sample_name,control,/path/to/fastqs/control_sample_R1.fastq.gz,/path/to/fastqs/control_sample_R2.fastq.gz
+    
+    Output csv for single-end data:
+    sample,treatment,fastq_1,fastq_2
+    sample_name,treated,/path/to/fastqs/treated_sample_R1.fastq.gz,
+    sample_name,control,/path/to/fastqs/control_sample_R1.fastq.gz,
     """
 
     sample_mapping_list = []
@@ -92,14 +102,6 @@ def check_samplesheet(file_in, file_out):
                                 "Line",
                                 line,
                             )
-
-                ## Ensure both treated_fastq_1 and treated_fastq_2 are provided for treated samples
-                if not treated_fastq_1 or not treated_fastq_2:
-                    print_error("Both treated_fastq_1 and treated_fastq_2 must be provided for treated samples!", "Line", line)
-
-                ## Ensure both control_fastq_1 and control_fastq_2 are provided for control samples
-                if not control_fastq_1 or not control_fastq_2:
-                    print_error("Both control_fastq_1 and control_fastq_2 must be provided for control samples!", "Line", line)
 
                 ## Add sample entries to the list
                 sample_mapping_list.append([sample, "treated", treated_fastq_1, treated_fastq_2])
