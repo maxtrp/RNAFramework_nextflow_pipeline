@@ -15,6 +15,7 @@ process SAMPLESHEET_CHECK {
 
 process BOWTIE_INDEX {
     tag "${fasta}"
+    container 'biocontainers/bowtie2:v2.4.1_cv1' // run bowtie2 in docker biocontainer
 
     input:
     path fasta
@@ -31,6 +32,7 @@ process BOWTIE_INDEX {
 
 process PEAR {
     tag "${sample_id}_${treatment}"
+    container 'quay.io/biocontainers/pear:0.9.6--hb1d24b7_13' // run pear in docker biocontainer
     publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
 
     input:
@@ -54,6 +56,7 @@ process PEAR {
 
 process FASTQC {
     tag "${sample_id}_${treatment}"
+    container 'biocontainers/fastqc:v0.11.9_cv8' // run fastqc in docker biocontainer
 
     input: 
     tuple val(sample_id), val(treatment), path(reads)
@@ -70,6 +73,7 @@ process FASTQC {
 process FASTP_DEDUPLICATION {
 
     tag "${sample_id}_${treatment}"
+    container 'quay.io/biocontainers/fastp:0.24.2--heae3180_0' // run fastp in docker biocontainer
     publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
 
     input:
@@ -89,6 +93,7 @@ process FASTP_DEDUPLICATION {
 
 process CUTADAPT {
     tag "${sample_id}_${treatment}"
+    container 'community.wave.seqera.io/library/cutadapt:5.0--991bbd2e184b7014' //run cutadapt in wave container
     publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
 
     input:
@@ -109,6 +114,7 @@ process CUTADAPT {
 
 process BOWTIE_ALIGNMENT {
     tag "${sample_id}_${treatment} on ${ref_name}"
+    container 'zpqu/bowtie2-samtools:v2.5.2-v1.19.2' // run bowtie2/samtools in docker container
     publishDir "${params.outdir}/logs/${sample_id}/", mode: 'copy', pattern: '*.log'
 
     input:
@@ -130,6 +136,7 @@ process BOWTIE_ALIGNMENT {
 
 process BAMQC {
     tag "${sample_id}_${treatment}"
+    container 'quay.io/biocontainers/qualimap:2.3--hdfd78af_0' // run bamqc in docker biocontainer
 
     input:
     tuple val(sample_id), val(treatment), file(bam), file(bai)
@@ -145,6 +152,7 @@ process BAMQC {
 
 process MULTIQC {
     publishDir "${params.outdir}", mode: "copy", pattern: "*.html"
+    container 'multiqc/multiqc:pdf-v1.32' // run multiqc in docker container
 
     input:
     path '*'
@@ -217,6 +225,7 @@ process RF_NORM {
 
 process RAW_COUNTS {
     tag "${sample_id}"
+    container 'felixlohmeier/pandas:latest' // run in container
     publishDir "${params.outdir}/${sample_id}/", mode: 'copy', pattern: '*.csv'
     
     input:
