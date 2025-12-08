@@ -16,9 +16,28 @@ nextflow.enable.dsl = 2
 def helpMessage() {
     log.info""" 
     Usage:
-    nextflow run main.nf <params>
+    nextflow run main.nf \
+    --samplesheet </path/to/samplesheet.csv> \
+    --reference_transcriptome </path/to/reference.fasta> \
+    --probing_reagent <'dms' or 'shape'> \
+    --sequencing_protocol <'paired_end' or 'single_end'>
 
-    --help                                Print this help message and exit.
+    Pipeline parameters:                    (if not specified in the nextflow.config file)
+
+      --samplesheet [str]                   Path to sample information file in csv format.
+      --reference_transcriptome [str]       Path to reference transcriptome in fasta format.
+      --probing_reagent [str]               Reagent used to probe RNA (either 'dms' or 'shape').
+      --sequencing_protocol [str]           Either 'paired_end' or 'single_end'.
+
+      --outdir [str]                        Path to output directory where the results will be saved (default: results/YYYYMMDD_HHMM/).
+      --read1_adapter [str]                 Sequence of R1 3' adapter (default: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCA").
+      --read2_adapter [str]                 Sequence of R2 3' adapter (default: "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT").
+      --quality_cutoff [int]                Base quality threshold applied during adapter trimming (default: 17).
+      --min_read_length [int]               Lower limit for read length (default: 40).
+      --run_draco [bool]                    Whether to run ensemble deconvolution (default: false).
+      --draco_subsampling [int]             Number of reads to sample for running draco (default: 10000).
+
+      --help                                Print this help message and exit.
 
     """.stripIndent()
 }
