@@ -32,7 +32,7 @@ process BOWTIE_INDEX {
 
 process PEAR {
     tag "${sample_id}_${treatment}"
-    container 'quay.io/biocontainers/pear:0.9.6--hb1d24b7_13' // run pear in docker biocontainer
+    container 'community.wave.seqera.io/library/pear:0.9.6--568591d27ee05b22' // run pear in seqera container
     publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
 
     input:
@@ -73,7 +73,7 @@ process FASTQC {
 process FASTP_DEDUPLICATION {
 
     tag "${sample_id}_${treatment}"
-    container 'quay.io/biocontainers/fastp:0.24.2--heae3180_0' // run fastp in docker biocontainer
+    container 'community.wave.seqera.io/library/fastp:1.0.1--c8b87fe62dcc103c' // run fastp in seqera container
     publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
 
     input:
@@ -93,7 +93,7 @@ process FASTP_DEDUPLICATION {
 
 process CUTADAPT {
     tag "${sample_id}_${treatment}"
-    container 'community.wave.seqera.io/library/cutadapt:5.0--991bbd2e184b7014' //run cutadapt in wave container
+    container 'community.wave.seqera.io/library/cutadapt:5.0--991bbd2e184b7014' //run cutadapt in seqera container
     publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
 
     input:
@@ -136,7 +136,7 @@ process BOWTIE_ALIGNMENT {
 
 process BAMQC {
     tag "${sample_id}_${treatment}"
-    container 'quay.io/biocontainers/qualimap:2.3--hdfd78af_0' // run bamqc in docker biocontainer
+    container 'community.wave.seqera.io/library/qualimap:2.3--c1797c2253925b3a' // run bamqc in seqera container
 
     input:
     tuple val(sample_id), val(treatment), file(bam), file(bai)
@@ -259,8 +259,12 @@ process RF_COUNT_MUTATION_MAP_SUBSAMPLED {
     '''
     # calculate subsampling ratio
     TARGET_NUM_READS=!{target_num_reads}
-    NUM_MAPPED_READS=$(samtools view --excl-flags 4 !{bam} | wc -l)
-    RATIO=$(awk "BEGIN {if ($TARGET_NUM_READS / $NUM_MAPPED_READS > 1) print 1; else print $TARGET_NUM_READS / $NUM_MAPPED_READS}")
+    if [ $TARGET_NUM_READS -eq -1 ]; then
+        RATIO=1
+    else
+        NUM_MAPPED_READS=$(samtools view --excl-flags 4 !{bam} | wc -l)
+        RATIO=$(awk "BEGIN {if ($TARGET_NUM_READS / $NUM_MAPPED_READS > 1) print 1; else print $TARGET_NUM_READS / $NUM_MAPPED_READS}")
+    fi
 
     samtools view --excl-flags 4 --bam --subsample $RATIO --subsample-seed 1 !{bam} > downsampled_!{sample_id}_!{treatment}.bam &&
     samtools index downsampled_!{sample_id}_!{treatment}.bam --output downsampled_!{sample_id}_!{treatment}.bam.bai
