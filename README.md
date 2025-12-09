@@ -10,7 +10,7 @@ A Linux/MacOS machine is needed with the following installed and added to `PATH`
 - [Docker](https://www.docker.com/)
 - python3
 
-The pipeline runs most third-party tools (such as cutadapt, bowtie2, etc.) in docker containers meaning no need to install them manually.
+The pipeline runs most third-party tools (namely [RNA Framework](https://github.com/dincarnato/RNAFramework)) in docker containers meaning no need to install them manually.
 
 However, if you want to perform ensemble deconvolution, [DRACO](https://github.com/dincarnato/draco) needs to be installed in a conda environment (see [DRACO configuration](#draco-configuration)).
 
