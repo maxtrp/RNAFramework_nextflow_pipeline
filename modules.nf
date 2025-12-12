@@ -105,7 +105,7 @@ process CUTADAPT {
 
     script:
     """
-    cutadapt --cores $task.cpus --adapter ${params.read1_adapter} --adapter ${params.read2_adapter} \
+    cutadapt --cores $task.cpus --adapter ${params.read1_adapter} --front ${params.read2_adapter} \
     --quality-cutoff ${params.quality_cutoff} --minimum-length ${params.min_read_length} \
     --output trimmed_${sample_id}_${treatment}.fastq.gz \
     ${reads} > ${sample_id}_${treatment}_cutadapt.log
