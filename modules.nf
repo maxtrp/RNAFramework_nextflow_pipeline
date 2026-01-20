@@ -193,6 +193,7 @@ process RF_NORM {
     tag "${sample_id}"
     container 'dincarnato/rnaframework:latest' // run in docker container
     publishDir "${params.outdir}/${sample_id}/"     , mode: 'copy', pattern: '*.shape'
+    publishDir "${params.outdir}/${sample_id}/"     , mode: 'copy', pattern: '*.xml'
     publishDir "${params.outdir}/logs/${sample_id}/", mode: 'copy', pattern: '*.log'
     
     input:
@@ -200,6 +201,7 @@ process RF_NORM {
 
     output:
     tuple val(sample_id), file('*.shape'), emit: shape_file
+    tuple val(sample_id), file('*.xml')  , emit: xml_file
     path "*.log"                         , emit: log
 
 
@@ -216,8 +218,9 @@ process RF_NORM {
     --treated  !{counts_files['treated'][0]} --untreated !{counts_files['control'][0]} \
     --output-dir rf_norm > !{sample_id}_rf_norm.log
     
-    # create reactivity file in .shape format
-    for file in rf_norm/*.xml;
+    # create reactivity file(s) in .shape format
+    mv rf_norm/*.xml .
+    for file in *.xml;
         do xml_to_shape.py $file $(basename --suffix=.xml $file).shape;
     done
     '''

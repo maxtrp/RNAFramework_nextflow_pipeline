@@ -29,7 +29,7 @@ def main():
     if transcript is None:
         raise ValueError('Could not find <transcript> element in the XML file.')
 
-    sequence = transcript.findtext('sequence', default='').strip().replace('\n', '').replace(' ', '')
+    sequence = transcript.findtext('sequence', default='').strip().replace('\n', '').replace(' ', '').replace('\t','')
 
     # Extract reactivities
     reactivities_str = transcript.findtext('reactivity', default='').strip().replace('\n', '').replace(' ', '').replace('\t','')
