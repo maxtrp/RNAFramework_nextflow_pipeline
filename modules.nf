@@ -284,7 +284,7 @@ process RF_COUNT_SUBSAMPLED {
 process DRACO {
     tag "${sample_id}_${treatment}"
     publishDir "${params.outdir}/${sample_id}/draco/", mode: 'copy', pattern: '*.json'
-    publishDir "${params.outdir}/logs/${sample_id}/", mode: 'copy', pattern: '*.log'
+    publishDir "${params.outdir}/logs/${sample_id}/" , mode: 'copy', pattern: '*.log'
     
     input:
     tuple val(sample_id), val(treatment), file(mutation_map_file)
@@ -327,22 +327,21 @@ process RF_JSON2RC {
                --median-pre-cov 0 --min-confs 1 \
                > ${sample_id}_${treatment}_json2rc.log
     """
-
 }
 
 process DRACO_RF_NORM {
     tag "${sample_id}"
     container 'dincarnato/rnaframework:latest' // run in docker container
-    publishDir "${params.outdir}/${sample_id}/draco/"     , mode: 'copy', pattern: '*.shape'
-    publishDir "${params.outdir}/${sample_id}/draco/"     , mode: 'copy', pattern: '*.xml'
-    publishDir "${params.outdir}/logs/${sample_id}/", mode: 'copy', pattern: '*.log'
+    publishDir "${params.outdir}/${sample_id}/draco/", mode: 'copy', pattern: '*.shape'
+    publishDir "${params.outdir}/${sample_id}/draco/", mode: 'copy', pattern: '*.xml'
+    publishDir "${params.outdir}/logs/${sample_id}/" , mode: 'copy', pattern: '*.log'
     
     input:
     tuple val(sample_id), val(counts_files)
 
     output:
-    tuple val(sample_id), file('*.xml')  , emit: xml_file
-    path "*.log"                         , emit: log
+    tuple val(sample_id), file('*.xml'), emit: xml_file
+    path "*.log"                       , emit: log
 
 
     shell:

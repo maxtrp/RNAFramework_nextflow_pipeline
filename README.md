@@ -41,7 +41,7 @@ nextflow run main.nf --help
 
 ## DRACO configuration
 
-Due to the difficulty getting [DRACO](https://github.com/dincarnato/draco) up and running, it needs to be installed and manually compiled in its own conda environment. Use `DRACO_environment.yml` to install the dependencies and follow the instructions in the [DRACO documentation](https://draco-docs.readthedocs.io/en/latest/#installation). 
+Due to the difficulty getting [DRACO](https://github.com/dincarnato/draco) up and running, it needs to be installed and manually compiled in its own conda environment. Use `DRACO_environment.yml` to install the dependencies and follow the instructions in the [DRACO documentation](https://draco-docs.readthedocs.io/en/latest/#installation). Once compiled, make sure to add the draco executable to the `bin/` dir of the conda env.
 
 Once set up, add the path of the environment to the `nextflow.config` file:
 
