@@ -244,7 +244,8 @@ process RAW_COUNTS {
     """
 }
 
-process RF_COUNT_MUTATION_MAP_SUBSAMPLED {
+process RF_COUNT_SUBSAMPLED {
+    // process for generating (downsampled) input files for DRACO
     tag "${sample_id}_${treatment}"
     container 'dincarnato/rnaframework:latest' // run in docker container
     publishDir "${params.outdir}/logs/${sample_id}/", mode: 'copy', pattern: '*.log'
@@ -255,6 +256,7 @@ process RF_COUNT_MUTATION_MAP_SUBSAMPLED {
 
     output:
     tuple val(sample_id), val(treatment), file("rf_count/*.mm"), emit: mm_file
+    tuple val(sample_id), val(treatment), file("rf_count/*.rc"), emit: rc_file
     path "*.log"                                               , emit: log
 
     shell:
@@ -281,15 +283,15 @@ process RF_COUNT_MUTATION_MAP_SUBSAMPLED {
 
 process DRACO {
     tag "${sample_id}_${treatment}"
-    publishDir "${params.outdir}/${sample_id}/", mode: 'copy', pattern: '*.json'
+    publishDir "${params.outdir}/${sample_id}/draco/", mode: 'copy', pattern: '*.json'
     publishDir "${params.outdir}/logs/${sample_id}/", mode: 'copy', pattern: '*.log'
     
     input:
     tuple val(sample_id), val(treatment), file(mutation_map_file)
 
     output:
-    path "*.json", emit: draco_json
-    path "*.log" , emit: log
+    tuple val(sample_id), val(treatment), file("*.json"), emit: draco_json
+    path "*.log"                                        , emit: log
 
 
     script:
@@ -304,4 +306,59 @@ process DRACO {
     --lookaheadEigengaps 1 --softClusteringIters 30 --softClusteringInits 500 --softClusteringWeightModule 0.005 \
     --output ${sample_id}_${treatment}_draco.json > ${sample_id}_${treatment}_draco.log
     """
+}
+
+process RF_JSON2RC {
+    tag "${sample_id}_${treatment}"
+    container 'dincarnato/rnaframework:latest' // run in docker container
+    publishDir "${params.outdir}/logs/${sample_id}/", mode: 'copy', pattern: '*.log'
+
+    input:
+    tuple val(sample_id), val(treatment), file(draco_json_file)
+    tuple val(sample_id), val(treatment), file(downsampled_rc_file)
+
+    output:
+    tuple val(sample_id), val(treatment), file('rf_json2rc/*.rc'), emit: draco_rc_files
+    path "*.log"                                                 , emit: log
+
+    script:
+    """
+    rf-json2rc --json ${draco_json_file} --rc ${downsampled_rc_file} \
+               --median-pre-cov 0 --min-confs 1 \
+               > ${sample_id}_${treatment}_json2rc.log
+    """
+
+}
+
+process DRACO_RF_NORM {
+    tag "${sample_id}"
+    container 'dincarnato/rnaframework:latest' // run in docker container
+    publishDir "${params.outdir}/${sample_id}/draco/"     , mode: 'copy', pattern: '*.shape'
+    publishDir "${params.outdir}/${sample_id}/draco/"     , mode: 'copy', pattern: '*.xml'
+    publishDir "${params.outdir}/logs/${sample_id}/", mode: 'copy', pattern: '*.log'
+    
+    input:
+    tuple val(sample_id), val(counts_files)
+
+    output:
+    tuple val(sample_id), file('*.xml')  , emit: xml_file
+    path "*.log"                         , emit: log
+
+
+    shell:
+    if (params.probing_reagent == 'dms') {
+            reactive_bases = 'AC'
+        } else if(params.probing_reagent == 'shape') {
+            reactive_bases = 'ACGT'
+        } else {
+            exit 1, "--probing_reagent must be 'dms' or 'shape'"
+        }
+    '''
+    rf-norm --processors !{task.cpus} --scoring-method 3 --raw --reactive-bases !{reactive_bases} \
+    --treated  !{counts_files['treated']} --untreated !{counts_files['control']} \
+    --output-dir rf_norm > !{sample_id}_draco_rf_norm.log
+
+    mv rf_norm/*.xml .
+
+    '''
 }

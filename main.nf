@@ -73,8 +73,10 @@ include { MULTIQC } from './modules.nf'
 include { RF_COUNT } from './modules.nf'
 include { RF_NORM } from './modules.nf'
 include { RAW_COUNTS } from './modules.nf'
-include { RF_COUNT_MUTATION_MAP_SUBSAMPLED } from './modules.nf'
+include { RF_COUNT_SUBSAMPLED } from './modules.nf'
 include { DRACO } from './modules.nf'
+include { RF_JSON2RC } from './modules.nf'
+include { DRACO_RF_NORM } from './modules.nf'
 
 workflow {
 
@@ -130,8 +132,17 @@ workflow {
     raw_counts_ch = RAW_COUNTS(sample_rf_counts_ch)
 
     if (params.run_draco) {
-        rf_counts_mm_ch = RF_COUNT_MUTATION_MAP_SUBSAMPLED(bam_ch.indexed_bam, params.reference_transcriptome)
-        draco_ch = DRACO(rf_counts_mm_ch.mm_file)
+
+        rf_count_subsampled_ch = RF_COUNT_SUBSAMPLED(bam_ch.indexed_bam, params.reference_transcriptome)
+        draco_json_ch = DRACO(rf_count_subsampled_ch.mm_file)
+        draco_rc_ch = RF_JSON2RC(draco_json_ch.draco_json, rf_count_subsampled_ch.rc_file)
+        
+        sample_draco_rc_ch = draco_rc_ch.draco_rc_files
+                            .map{ sample_id, treatment, rc_file -> [sample_id, [(treatment):rc_file]] }
+                            .groupTuple(by: 0)
+                            .map{ sample_id, labelled_rc_files -> [sample_id, labelled_rc_files.collectEntries()] }
+
+        draco_rf_norm_ch = DRACO_RF_NORM(sample_draco_rc_ch)
     }
 
 }
