@@ -60,6 +60,7 @@ log.info """\
     reagent              -> ${params.probing_reagent}
     scoring method       -> ${params.scoring_method}
     normalisation method -> ${params.normalisation}
+    draco enabled        -> ${params.run_draco}
     outdir               -> ${params.outdir}
     """
     .stripIndent()
@@ -140,13 +141,7 @@ workflow {
         rf_count_subsampled_ch = RF_COUNT_SUBSAMPLED(bam_ch.indexed_bam, params.reference_transcriptome)
         draco_json_ch = DRACO(rf_count_subsampled_ch.mm_file)
         draco_rc_ch = RF_JSON2RC(draco_json_ch.draco_json, rf_count_subsampled_ch.rc_file)
-        
-        sample_draco_rc_ch = draco_rc_ch.draco_rc_files
-                            .map{ sample_id, treatment, rc_file -> [sample_id, [(treatment):rc_file]] }
-                            .groupTuple(by: 0)
-                            .map{ sample_id, labelled_rc_files -> [sample_id, labelled_rc_files.collectEntries()] }
-
-        draco_rf_norm_ch = DRACO_RF_NORM(sample_draco_rc_ch)
+        draco_rf_norm_ch = DRACO_RF_NORM(draco_rc_ch.draco_rc_file)
     }
 
 }
