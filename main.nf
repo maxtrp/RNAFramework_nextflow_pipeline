@@ -26,14 +26,16 @@ def helpMessage() {
 
       --samplesheet [str]                   Path to sample information file in csv format.
       --reference_transcriptome [str]       Path to reference transcriptome in fasta format.
-      --probing_reagent [str]               Reagent used to probe RNA (either 'dms' or 'shape').
       --sequencing_protocol [str]           Either 'paired_end' or 'single_end'.
+      --probing_reagent [str]               Reagent used to probe RNA (either 'dms' or 'shape').
 
       --outdir [str]                        Path to output directory where the results will be saved (default: results/YYYYMMDD_HHMM/).
       --read1_adapter [str]                 Sequence of R1 3' adapter (default: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCA").
       --read2_adapter [str]                 Sequence of R2 3' adapter (default: "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT").
       --quality_cutoff [int]                Base quality threshold applied during adapter trimming (default: 17).
       --min_read_length [int]               Lower limit for read length (default: 40).
+      --scoring_method [int]                Scoring method to be passed to RNA Framework rf-norm for calculating reactivities (default: 3).
+      --normalisation [int or false]        Normalisation method to be passed to RNA Framework rf-norm for normalising reactivities (default: false).
       --run_draco [bool]                    Whether to run ensemble deconvolution (default: false).
       --draco_subsampling [int]             Number of reads to sample for running draco (default: 10000).
 
@@ -52,11 +54,13 @@ if (!params.probing_reagent) {
 }
 
 log.info """\
-    samplesheet   -> ${params.samplesheet}
-    transcriptome -> ${params.reference_transcriptome}
-    reagent       -> ${params.probing_reagent}
-    protocol      -> ${params.sequencing_protocol}
-    outdir        -> ${params.outdir}
+    samplesheet          -> ${params.samplesheet}
+    transcriptome        -> ${params.reference_transcriptome}
+    protocol             -> ${params.sequencing_protocol}
+    reagent              -> ${params.probing_reagent}
+    scoring method       -> ${params.scoring_method}
+    normalisation method -> ${params.normalisation}
+    outdir               -> ${params.outdir}
     """
     .stripIndent()
 

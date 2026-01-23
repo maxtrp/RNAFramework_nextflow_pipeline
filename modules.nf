@@ -213,8 +213,14 @@ process RF_NORM {
         } else {
             exit 1, "--probing_reagent must be 'dms' or 'shape'"
         }
+    if (!params.normalisation) {
+            norm_option = "--raw"
+        } else {
+            norm_option = "--norm-method ${params.normalisation}"
+        }
     '''
-    rf-norm --processors !{task.cpus} --scoring-method 3 --raw --reactive-bases !{reactive_bases} \
+    rf-norm --processors !{task.cpus} --reactive-bases !{reactive_bases} \
+    --scoring-method !{params.scoring_method} !{norm_option} \
     --treated  !{counts_files['treated'][0]} --untreated !{counts_files['control'][0]} \
     --output-dir rf_norm > !{sample_id}_rf_norm.log
     
@@ -301,7 +307,7 @@ process DRACO {
         draco_shape = false
     }
     """
-    draco --mm ${mutation_map_file} ${draco_shape ? '--shape' : ''} \
+    draco --processors $task.cpus --mm ${mutation_map_file} ${draco_shape ? '--shape' : ''} \
     --absWinLen 100 --absWinOffset 5 --minPermutations 10 --maxPermutations 50 --firstEigengapShift 0.95 \
     --lookaheadEigengaps 1 --softClusteringIters 30 --softClusteringInits 500 --softClusteringWeightModule 0.005 \
     --output ${sample_id}_${treatment}_draco.json > ${sample_id}_${treatment}_draco.log
@@ -352,9 +358,15 @@ process DRACO_RF_NORM {
         } else {
             exit 1, "--probing_reagent must be 'dms' or 'shape'"
         }
+    if (!params.normalisation) {
+            norm_option = "--raw"
+        } else {
+            norm_option = "--norm-method ${params.normalisation}"
+        }        
     '''
-    rf-norm --processors !{task.cpus} --scoring-method 3 --raw --reactive-bases !{reactive_bases} \
-    --treated  !{counts_files['treated']} --untreated !{counts_files['control']} \
+    rf-norm --processors !{task.cpus} --reactive-bases !{reactive_bases} \
+    --scoring-method !{params.scoring_method} !{norm_option} \
+    --treated !{counts_files['treated']} --untreated !{counts_files['control']} \
     --output-dir rf_norm > !{sample_id}_draco_rf_norm.log
 
     mv rf_norm/*.xml .
