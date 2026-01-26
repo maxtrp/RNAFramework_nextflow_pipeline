@@ -35,6 +35,8 @@ def main():
     reactivities_str = transcript.findtext('reactivity', default='').strip().replace('\n', '').replace(' ', '').replace('\t','')
     reactivities = reactivities_str.split(',')
 
+    assert len(sequence) == len(reactivities), f'Sequence and reactivities lengths are not equal in {input_xml_file}'
+
     # write cleaned .shape file
     with open(output_shape_file, 'w') as f:
         for i, val in enumerate(reactivities, start=1):
