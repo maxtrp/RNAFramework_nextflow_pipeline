@@ -333,6 +333,8 @@ process RF_JSON2RC {
     """
     rf-json2rc --json ${draco_json_file} --rc ${downsampled_rc_file} \
                --median-pre-cov 0 --min-confs 1 \
+               --min-overlap-merge 0.35 --extend 20 \
+               --cap-mut-freqs 0.1 --ignore-terminal 0.1 --min-corr-merge 0.65 \
                > ${sample_id}_${treatment}_json2rc.log
     
     mv rf_json2rc/stoichiometries.txt ./${sample_id}_${treatment}_draco_stoichiometries.txt
@@ -342,16 +344,17 @@ process RF_JSON2RC {
 process DRACO_RF_NORM {
     tag "${sample_id}_${treatment}"
     container 'dincarnato/rnaframework:latest' // run in docker container
-    publishDir "${params.outdir}/${sample_id}/draco/${treatment}/", mode: 'copy', pattern: '*.shape'
-    publishDir "${params.outdir}/${sample_id}/draco/${treatment}/", mode: 'copy', pattern: '*.xml'
-    publishDir "${params.outdir}/logs/${sample_id}/"              , mode: 'copy', pattern: '*.log'
+    publishDir "${params.outdir}/${sample_id}/draco/${treatment}/shape_format/", mode: 'copy', pattern: '*.shape'
+    publishDir "${params.outdir}/${sample_id}/draco/${treatment}/xml_format/"  , mode: 'copy', pattern: '*.xml'
+    publishDir "${params.outdir}/logs/${sample_id}/"                           , mode: 'copy', pattern: '*.log'
     
     input:
     tuple val(sample_id), val(treatment), val(draco_rc_file)
 
     output:
-    tuple val(sample_id), file('*.xml'), emit: xml_file
-    path "*.log"                       , emit: log
+    tuple val(sample_id), file('*.xml')  , emit: xml_file
+    tuple val(sample_id), file('*.shape'), emit: shape_file
+    path "*.log"                         , emit: log
 
 
     shell:
@@ -374,6 +377,8 @@ process DRACO_RF_NORM {
     --output-dir rf_norm > !{sample_id}_draco_rf_norm.log
 
     mv rf_norm/*.xml .
-
+    for file in *.xml;
+        do xml_to_shape.py $file $(basename --suffix=.xml $file).shape;
+    done
     '''
 }
