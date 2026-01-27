@@ -308,8 +308,10 @@ process DRACO {
     }
     """
     draco --processors $task.cpus --mm ${mutation_map_file} ${draco_shape ? '--shape' : ''} \
-    --absWinLen 100 --absWinOffset 5 --minPermutations 10 --maxPermutations 50 --firstEigengapShift 0.95 \
-    --lookaheadEigengaps 1 --softClusteringIters 30 --softClusteringInits 500 --softClusteringWeightModule 0.005 \
+    --minWindowsOverlap 0.5 --absWinLen 100 --absWinOffset 5 \
+    --minPermutations 10 --maxPermutations 50 \
+    --firstEigengapShift 0.95 --lookaheadEigengaps 1 \
+    --softClusteringIters 30 --softClusteringInits 500 --softClusteringWeightModule 0.005 \
     --output ${sample_id}_${treatment}_draco.json > ${sample_id}_${treatment}_draco.log
     """
 }
