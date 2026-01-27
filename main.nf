@@ -34,8 +34,10 @@ def helpMessage() {
       --read2_adapter [str]                 Sequence of R2 3' adapter (default: "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT").
       --quality_cutoff [int]                Base quality threshold applied during adapter trimming (default: 17).
       --min_read_length [int]               Lower limit for read length (default: 40).
-      --scoring_method [int]                Scoring method to be passed to RNA Framework rf-norm for calculating reactivities (default: 3).
-      --normalisation [int or false]        Normalisation method to be passed to RNA Framework rf-norm for normalising reactivities (default: false).
+      --scoring_method [int]                Scoring method to be passed to RNA Framework rf-norm --scoring-method for calculating reactivities (default: 3).
+      --normalisation [int or false]        Normalisation method to be passed to RNA Framework rf-norm --norm-method for normalising reactivities.
+                                            Specifying 'false' causes nf-norm to output raw reactivities (default: false).
+      
       --run_draco [bool]                    Whether to run ensemble deconvolution (default: false).
       --draco_subsampling [int]             Number of reads to sample for running draco (default: 10000).
 
