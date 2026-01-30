@@ -308,11 +308,26 @@ process DRACO {
     }
     """
     draco --processors $task.cpus --mm ${mutation_map_file} ${draco_shape ? '--shape' : ''} \
-    --minWindowsOverlap 0.5 --absWinLen 100 --absWinOffset 5 \
+    --minWindowsOverlap 0.5 --winOffset 5 \
     --minPermutations 10 --maxPermutations 50 \
-    --firstEigengapShift 0.95 --lookaheadEigengaps 1 \
-    --softClusteringIters 30 --softClusteringInits 500 --softClusteringWeightModule 0.005 \
+    --lookaheadEigengaps 1 --softClusteringIters 30 \
+    --log-level trace \
     --output ${sample_id}_${treatment}_draco.json > ${sample_id}_${treatment}_draco.log
+    """
+}
+
+process DRACO_JSON_FIX {
+    tag "${sample_id}_${treatment}"
+
+    input:
+    tuple val(sample_id), val(treatment), file(draco_json_file)
+
+    output:
+    tuple val(sample_id), val(treatment), file("fixed_*.json"), emit: draco_json
+
+    script:
+    """
+    fix_draco_json.py ${draco_json_file}
     """
 }
 

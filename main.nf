@@ -82,6 +82,7 @@ include { RF_NORM } from './modules.nf'
 include { RAW_COUNTS } from './modules.nf'
 include { RF_COUNT_SUBSAMPLED } from './modules.nf'
 include { DRACO } from './modules.nf'
+include { DRACO_JSON_FIX } from './modules.nf'
 include { RF_JSON2RC } from './modules.nf'
 include { DRACO_RF_NORM } from './modules.nf'
 
@@ -142,7 +143,8 @@ workflow {
 
         rf_count_subsampled_ch = RF_COUNT_SUBSAMPLED(bam_ch.indexed_bam, params.reference_transcriptome)
         draco_json_ch = DRACO(rf_count_subsampled_ch.mm_file)
-        draco_rc_ch = RF_JSON2RC(draco_json_ch.draco_json, rf_count_subsampled_ch.rc_file)
+        fixed_draco_json_ch = DRACO_JSON_FIX(draco_json_ch.draco_json)
+        draco_rc_ch = RF_JSON2RC(fixed_draco_json_ch.draco_json, rf_count_subsampled_ch.rc_file)
         draco_rf_norm_ch = DRACO_RF_NORM(draco_rc_ch.draco_rc_file)
     }
 
