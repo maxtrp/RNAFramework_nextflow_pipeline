@@ -311,7 +311,7 @@ process DRACO {
     --minWindowsOverlap 0.5 --winOffset 5 \
     --minPermutations 10 --maxPermutations 50 \
     --lookaheadEigengaps 1 --softClusteringIters 30 \
-    --log-level trace \
+    --minBaseCoverage 10 --log-level trace \
     --output ${sample_id}_${treatment}_draco.json > ${sample_id}_${treatment}_draco.log
     """
 }
