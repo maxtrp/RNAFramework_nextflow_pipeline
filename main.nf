@@ -69,11 +69,10 @@ log.info """\
 
 include { SAMPLESHEET_CHECK } from './modules.nf'
 include { BOWTIE_INDEX } from './modules.nf'
-include { PEAR } from './modules.nf'
 include { FASTQC as FASTQC_RAW } from './modules.nf'
 include { FASTQC as FASTQC_PROCESSED } from './modules.nf'
-include { FASTP_DEDUPLICATION } from './modules.nf'
-include { CUTADAPT } from './modules.nf'
+include { FASTP_SE } from './modules.nf'
+include { FASTP_PE } from './modules.nf'
 include { BOWTIE_ALIGNMENT } from './modules.nf'
 include { BAMQC } from './modules.nf'
 include { MULTIQC } from './modules.nf'
@@ -96,8 +95,10 @@ workflow {
                                 .map {
                                     row -> [row.sample, row.treatment, [file(row.fastq_1, checkIfExists: true), file(row.fastq_2, checkIfExists: true)]]
                                 }
+        
+        raw_fastqc_ch       = FASTQC_RAW(raw_reads_ch)
 
-        raw_reads_ch = PEAR(raw_reads_ch).fastq
+        processed_reads_ch = FASTP_PE(raw_reads_ch)
 
     } else if (params.sequencing_protocol == 'single_end') {
 
@@ -108,21 +109,19 @@ workflow {
                                     row -> [row.sample, row.treatment, file(row.fastq_1, checkIfExists: true)]
                                 }
 
+        raw_fastqc_ch       = FASTQC_RAW(raw_reads_ch)
+
+        processed_reads_ch    = FASTP_SE(raw_reads_ch)
+
     } else {
         exit 1, "must specify --sequencing_protocol (either 'single_end' or 'paired_end')"
     }
     
     bowtie_index_ch     = BOWTIE_INDEX(params.reference_transcriptome)
-
-    raw_fastqc_ch       = FASTQC_RAW(raw_reads_ch)
-
-    deduplicated_reads_ch = FASTP_DEDUPLICATION(raw_reads_ch)
     
-    trimmed_reads_ch    = CUTADAPT(deduplicated_reads_ch.reads)
+    processed_fastqc_ch = FASTQC_PROCESSED(processed_reads_ch.reads)
 
-    processed_fastqc_ch = FASTQC_PROCESSED(trimmed_reads_ch.reads)
-
-    bam_ch              = BOWTIE_ALIGNMENT(bowtie_index_ch, trimmed_reads_ch.reads)
+    bam_ch              = BOWTIE_ALIGNMENT(bowtie_index_ch, processed_reads_ch.reads)
 
     bamqc_ch            = BAMQC(bam_ch.indexed_bam)
     

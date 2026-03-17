@@ -30,30 +30,6 @@ process BOWTIE_INDEX {
     """
 }
 
-process PEAR {
-    tag "${sample_id}_${treatment}"
-    container 'community.wave.seqera.io/library/pear:0.9.6--568591d27ee05b22' // run pear in seqera container
-    publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
-
-    input:
-    tuple val(sample_id), val(treatment), path(reads)
-
-    output:
-    tuple val(sample_id), val(treatment), path("*.assembled.fastq.gz"), emit: fastq
-    path "*.log"                                                      , emit: log
-
-    script:
-    """
-    pear --forward-fastq ${reads[0]} --reverse-fastq ${reads[1]} --output ${sample_id}_${treatment} \
-    --max-uncalled-base 0 --threads $task.cpus > ${sample_id}_${treatment}_pear.log
-
-    cat ${sample_id}_${treatment}.discarded.fastq >> ${sample_id}_${treatment}.assembled.fastq
-
-    gzip ${sample_id}_${treatment}.assembled.fastq
-    """
-
-}
-
 process FASTQC {
     tag "${sample_id}_${treatment}"
     container 'biocontainers/fastqc:v0.11.9_cv8' // run fastqc in docker biocontainer
@@ -70,8 +46,8 @@ process FASTQC {
     """
 }
 
-process FASTP_DEDUPLICATION {
-
+process FASTP_SE {
+    // process raw single-end reads
     tag "${sample_id}_${treatment}"
     container 'community.wave.seqera.io/library/fastp:1.0.1--c8b87fe62dcc103c' // run fastp in seqera container
     publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
@@ -85,15 +61,18 @@ process FASTP_DEDUPLICATION {
 
     script:
     """
-    fastp --thread $task.cpus --dedup --disable_adapter_trimming \
+    fastp --thread $task.cpus --dedup \
+    --qualified_quality_phred ${params.quality_cutoff} --length_required ${params.min_read_length} \
+    --adapter_sequence ${params.read1_adapter} \
     --in1 ${reads} --out1 deduplicated_${sample_id}_${treatment}.fastq.gz \
-    2> ${sample_id}_${treatment}_fastp_dedup.log
+    2> ${sample_id}_${treatment}_fastp.log
     """
 }
 
-process CUTADAPT {
+process FASTP_PE {
+    // process raw paired-end reads
     tag "${sample_id}_${treatment}"
-    container 'community.wave.seqera.io/library/cutadapt:5.0--991bbd2e184b7014' //run cutadapt in seqera container
+    container 'community.wave.seqera.io/library/fastp:1.0.1--c8b87fe62dcc103c' // run fastp in seqera container
     publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
 
     input:
@@ -105,10 +84,12 @@ process CUTADAPT {
 
     script:
     """
-    cutadapt --cores $task.cpus --adapter ${params.read1_adapter} --front ${params.read2_adapter} \
-    --quality-cutoff ${params.quality_cutoff} --minimum-length ${params.min_read_length} \
-    --output trimmed_${sample_id}_${treatment}.fastq.gz \
-    ${reads} > ${sample_id}_${treatment}_cutadapt.log
+    fastp --thread $task.cpus --dedup --merge --include_unmerged \
+    --qualified_quality_phred ${params.quality_cutoff} --length_required ${params.min_read_length} \
+    --adapter_sequence ${params.read1_adapter} --adapter_sequence_r2 ${params.read2_adapter} \
+    --in1 ${reads[0]} --in2 ${reads[1]} \
+    --merged_out fastp_merged_${sample_id}_${treatment}.fastq.gz \
+    2> ${sample_id}_${treatment}_fastp.log
     """
 }
 
